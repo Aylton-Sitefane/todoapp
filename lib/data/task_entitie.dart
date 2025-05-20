@@ -34,4 +34,33 @@ class Task {
       'updatedAt': updatedAt?.toIso8601String(),
     };
   }
+
+  // Método copyWith
+  Task copyWith({
+    String? id,
+    String? title,
+    String? description,
+    bool? isCompleted,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) {
+    return Task(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      description: description ?? this.description,
+      isCompleted: isCompleted ?? this.isCompleted,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
+  @override
+  List<Object?> get props => [
+        id,
+        title,
+        description,
+        isCompleted,
+        createdAt,
+        updatedAt,
+      ];
 }
