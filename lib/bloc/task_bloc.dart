@@ -22,5 +22,15 @@ class TaskBloc extends Bloc<TaskEvent, TaskState> {
       _tasks.remove(event.task);
       emit(TaskLoadedState(List.from(_tasks)));
     });
+
+    on<UpdateTaskEvent>((event, emit) {
+      _tasks = _tasks.map((task) {
+        if (task.id == event.updatedTask.id) {
+          return event.updatedTask;
+        }
+        return task;
+      }).toList();
+      emit(TaskLoadedState(List.from(_tasks)));
+    });
   }
 }
