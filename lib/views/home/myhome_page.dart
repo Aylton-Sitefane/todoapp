@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:todoapp/bloc/events/task_event_bloc.dart';
+import 'package:todoapp/bloc/task_bloc.dart';
 import 'package:todoapp/views/home/components/my_body.dart';
 import 'package:todoapp/data/task_entitie.dart';
-import 'package:todoapp/views/home/provider/task_provider.dart';
+import 'package:uuid/uuid.dart';
 
 class MyhomePage extends StatefulWidget {
   const MyhomePage({super.key});
@@ -21,6 +23,7 @@ class _MyhomePageState extends State<MyhomePage> {
     _descriptionController.dispose();
     super.dispose();
   }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -32,13 +35,12 @@ class _MyhomePageState extends State<MyhomePage> {
         title: const Text('Gestao de tarefas'),
         centerTitle: true,
       ),
-      body:  MyBody(),
+      body: MyBody(),
     );
   }
 
   void todoActionButton() {
     showDialog(
-      
       context: context,
       builder: (context) {
         return AlertDialog(
@@ -73,7 +75,8 @@ class _MyhomePageState extends State<MyhomePage> {
               builder: (dialogContext) => TextButton(
                 onPressed: () {
                   // Adicionar a tarefa
-                  if (_titleController.text.isEmpty || _descriptionController.text.isEmpty) {
+                  if (_titleController.text.isEmpty ||
+                      _descriptionController.text.isEmpty) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                         content: Text('Preencha os campos!'),
@@ -81,18 +84,20 @@ class _MyhomePageState extends State<MyhomePage> {
                       ),
                     );
                     return;
-                    
                   } else {
-                    Provider.of<TaskProvider>(context, listen: false).addTask(
-                      Task(
-                        title: _titleController.text,
-                        description: _descriptionController.text,
-                        isCompleted: false,
-                        createdAt: DateTime.now(),
-                        updatedAt: DateTime.now(),
-                      ),
+
+                    // Criacao da tarefa
+                    final newTask = Task(
+                      id: const Uuid().v4(),
+                      title: _titleController.text,
+                      description: _descriptionController.text,
+                      isCompleted: false,
+                      createdAt: DateTime.now(),
+                      updatedAt: DateTime.now(),
                     );
-                    
+
+                    // Adicao da tarefa usando task bloc
+                    context.read<TaskBloc>().add(AddTaskEvent(newTask));
                   }
                   clearTextFields();
                   Navigator.pop(context);

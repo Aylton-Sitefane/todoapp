@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:todoapp/bloc/events/task_event_bloc.dart';
+import 'package:todoapp/bloc/states/task_state_bloc.dart';
+import 'package:todoapp/bloc/task_bloc.dart';
 import 'package:todoapp/data/task_entitie.dart';
-import 'package:todoapp/views/home/provider/task_provider.dart';
+import 'package:uuid/uuid.dart';
 
 class MyBody extends StatefulWidget {
-  const MyBody({
-    super.key,
-  });
+  const MyBody({super.key});
 
   @override
   State<MyBody> createState() => _MyBodyState();
@@ -25,60 +26,68 @@ class _MyBodyState extends State<MyBody> {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<TaskProvider>(builder: (context, taskProvider, child) {
-      final tasks = taskProvider.tasks;
-      return Column(
-        children: [
-          Expanded(
-            child: tasks.isEmpty
-                ? const Center(
-                    child: Text(
-                      'Nenhuma tarefa cadastrada',
-                      style: TextStyle(fontSize: 20),
+    return BlocBuilder<TaskBloc, TaskState>(
+      builder: (context, state) {
+        //Estado inicial do estado
+        if (state is TaskInitialState) {
+          context.read<TaskBloc>().add(LoadTasksEvents());
+          return const Center(
+            child: CircularProgressIndicator(),
+          );
+          // Estado de carregamento do estado
+        } else if (state is TaskLoadingState) {
+          return const Center(
+            child: CircularProgressIndicator(),
+          );
+          //Extado processado com sucesso
+        } else if (state is TaskLoadedState) {
+          final tasks = state.tasks;
+          return SizedBox.expand(
+            child: ListView.builder(
+              itemCount: tasks.length,
+              itemBuilder: (context, index) {
+                final task = tasks[index];
+                return ListTile(
+                  title: Text(task.title.toString()),
+                  subtitle: Text(task.description.toString()),
+                  trailing: SizedBox(
+                    height: 20,
+                    width: 100,
+                    child: Row(
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.delete),
+                          onPressed: () {
+                            context.read<TaskBloc>().add(DeleteTaskEvent(task));
+                          },
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.edit),
+                          onPressed: () => updateTask(context, task),
+                        ),
+                      ],
                     ),
-                  )
-                : ListView.builder(
-                    itemCount: tasks.length,
-                    scrollDirection: Axis.vertical,
-                    itemBuilder: (context, index) {
-                      return ListTile(
-                        leading: Checkbox(
-                          value: false,
-                          onChanged: (value) {},
-                        ),
-                        title: Text('${tasks[index].title}'),
-                        subtitle: Text('${tasks[index].description}'),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize
-                              .min, // Add this to prevent Row from taking all space
-                          children: [
-                            TextButton(
-                              onPressed: () {
-                                taskProvider.removeTask(tasks[index]);
-                              },
-                              child: Icon(Icons.delete),
-                            ),
-                            TextButton(
-                              onPressed: () {
-                                editTask(context, tasks[index]);
-                              },
-                              child: Icon(Icons.edit),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
                   ),
-          ),
-        ],
-      );
-    });
+                );
+              },
+            ),
+          );
+        } else if (state is TaskErrorState) {
+          return Center(
+            child: Text(state.error),
+          );
+        } else {
+          return const Center(
+            child: Text('Estado desconhecido'),
+          );
+        }
+      },
+    );
   }
 
-  void editTask(BuildContext context, Task task) {
-    _titleController.text = task.title!;
-    _descriptionController.text = task.description!;
-
+  void updateTask(BuildContext context, Task task) {
+    _titleController.text = task.title.toString();
+    _descriptionController.text = task.description.toString();
     showDialog(
       context: context,
       builder: (context) {
@@ -96,7 +105,7 @@ class _MyBodyState extends State<MyBody> {
                 ),
                 TextField(
                   controller: _descriptionController,
-                  maxLines: 3,
+                  maxLines: 2,
                   decoration: const InputDecoration(labelText: 'Descricao'),
                 ),
               ],
@@ -113,8 +122,8 @@ class _MyBodyState extends State<MyBody> {
             Builder(
               builder: (dialogContext) => TextButton(
                 onPressed: () {
-                  // Adicionar a tarefa
-                  if (_titleController.text.isEmpty &&
+                  // Atualizar a tarefa
+                  if (_titleController.text.isEmpty ||
                       _descriptionController.text.isEmpty) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
@@ -124,23 +133,18 @@ class _MyBodyState extends State<MyBody> {
                     );
                     return;
                   } else {
-                    Provider.of<TaskProvider>(context, listen: false)
-                        .updateTask(
-                      task,
-                      Task(
-                        title: _titleController.text,
-                        description: _descriptionController.text,
-                        isCompleted: false,
-                        createdAt: task.createdAt,
-                        updatedAt: DateTime.now(),
-                      ),
+                    // Criacao da tarefa
+                    final updatedTask = task.copyWith(
+                      title: _titleController.text,
+                      description: _descriptionController.text,
+                      updatedAt: DateTime.now(),
                     );
+                    context.read<TaskBloc>().add(UpdateTaskEvent(updatedTask));
                   }
-                 
                   clearTextFields();
                   Navigator.pop(context);
                 },
-                child: const Text('Atualizar'),
+                child: const Text('Actualizar'),
               ),
             ),
           ],
