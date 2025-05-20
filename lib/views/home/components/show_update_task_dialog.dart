@@ -52,7 +52,6 @@ void showUpdateTaskDialog(BuildContext context, Task task) {
                 final updatedTask = task.copyWith(
                   title: _titleController.text,
                   description: _descriptionController.text,
-                  updatedAt: DateTime.now(),
                 );
                 // Provide the required positional arguments for UpdateTaskEvent
                 context.read<TaskBloc>().add(UpdateTaskEvent(updatedTask));

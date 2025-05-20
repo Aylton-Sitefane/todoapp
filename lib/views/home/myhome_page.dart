@@ -17,6 +17,8 @@ class _MyhomePageState extends State<MyhomePage> {
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
 
+  TimeOfDay? selectedDuration;
+
   @override
   void dispose() {
     _titleController.dispose();
@@ -47,20 +49,59 @@ class _MyhomePageState extends State<MyhomePage> {
           title: const Text('Adicionar tarefa'),
           content: SizedBox(
             width: 450,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: _titleController,
-                  decoration: const InputDecoration(labelText: 'Titulo'),
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-                TextField(
-                  controller: _descriptionController,
-                  maxLines: 2,
-                  decoration: const InputDecoration(labelText: 'Descricao'),
-                ),
-              ],
+            child: StatefulBuilder(
+              builder: (BuildContext context, StateSetter setModalState) {
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: _titleController,
+                      decoration: const InputDecoration(labelText: 'Titulo'),
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    TextField(
+                      controller: _descriptionController,
+                      maxLines: 2,
+                      decoration: const InputDecoration(labelText: 'Descricao'),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        ElevatedButton(
+                          onPressed: () async {
+                            TimeOfDay? pickedTime = await showTimePicker(
+                              context: context,
+                              initialTime: const TimeOfDay(hour: 1, minute: 0),
+                              builder: (context, child) {
+                                return MediaQuery(
+                                  data: MediaQuery.of(context)
+                                      .copyWith(alwaysUse24HourFormat: true),
+                                  child: child!,
+                                );
+                              },
+                            );
+                            if (pickedTime != null) {
+                              // atualiza apenas o dialog
+                              setModalState(() {
+                                selectedDuration = pickedTime;
+                              });
+                            }
+                          },
+                          child: const Text('Definir duração'),
+                        ),
+                        const SizedBox(width: 12),
+                        if (selectedDuration != null)
+                          Text(
+                            'Duração: ${selectedDuration!.hour.toString().padLeft(2, '0')}h '
+                            '${selectedDuration!.minute.toString().padLeft(2, '0')}m',
+                            style: const TextStyle(
+                                fontSize: 16, fontWeight: FontWeight.w500),
+                          ),
+                      ],
+                    ),
+                  ],
+                );
+              },
             ),
           ),
           actions: [
@@ -74,31 +115,34 @@ class _MyhomePageState extends State<MyhomePage> {
             Builder(
               builder: (dialogContext) => TextButton(
                 onPressed: () {
-                  // Adicionar a tarefa
                   if (_titleController.text.isEmpty ||
-                      _descriptionController.text.isEmpty) {
+                      _descriptionController.text.isEmpty ||
+                      selectedDuration == null) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                        content: Text('Preencha os campos!'),
+                        content: Text('Preencha todos os campos!'),
                         duration: Duration(seconds: 2),
                       ),
                     );
                     return;
-                  } else {
-
-                    // Criacao da tarefa
-                    final newTask = Task(
-                      id: const Uuid().v4(),
-                      title: _titleController.text,
-                      description: _descriptionController.text,
-                      isCompleted: false,
-                      createdAt: DateTime.now(),
-                      updatedAt: DateTime.now(),
-                    );
-
-                    // Adicao da tarefa usando task bloc
-                    context.read<TaskBloc>().add(AddTaskEvent(newTask));
                   }
+
+                  final duration = Duration(
+                    hours: selectedDuration!.hour,
+                    minutes: selectedDuration!.minute,
+                  );
+
+                  final newTask = Task(
+                    id: const Uuid().v4(),
+                    title: _titleController.text,
+                    description: _descriptionController.text,
+                    isCompleted: false,
+                    createdAt: DateTime.now(),
+                    deadline: duration,
+                  );
+
+                  context.read<TaskBloc>().add(AddTaskEvent(newTask));
+
                   clearTextFields();
                   Navigator.pop(context);
                 },
@@ -114,5 +158,6 @@ class _MyhomePageState extends State<MyhomePage> {
   void clearTextFields() {
     _titleController.clear();
     _descriptionController.clear();
+    selectedDuration = null;
   }
 }
